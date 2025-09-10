@@ -32,6 +32,9 @@ int main() {
     std::cout << "det(A) = " << A.determinant_via_lup() << "\n";
 
     std::cout << "A^{-1}:\n" << A.inverse() << "\n";
+
+
+
     return 0;
 
     return 0;

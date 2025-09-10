@@ -95,13 +95,27 @@ namespace vmath {
             return std::inner_product(data_.begin(), data_.end(), other.data_.begin(), T(0));
         }
 
-        // Квадрат нормы и норма
+        // Нормы
         T norm_squared() const noexcept {
             return std::inner_product(data_.begin(), data_.end(), data_.begin(), T(0));
         }
 
         long double norm() const noexcept {
             return std::sqrt((long double)norm_squared());
+        }
+
+        T norm1() const {
+            T sum = T(0);
+            for (std::size_t i = 0; i < size(); i++)
+                sum += std::abs(data_[i]);
+            return sum;
+        }
+
+        T norm_inf() const {
+            T max_val = T(0);
+            for (std::size_t i = 0; i < size(); i++)
+                max_val = std::max(max_val, std::abs(data_[i]));
+            return max_val;
         }
 
         // Возвращает нормализованный вектор (копия). Бросает при нулевой норме.

@@ -26,8 +26,8 @@ namespace vmath {
     public:
         // Конструкторы
         Matrix() = default;
-        Matrix(std::size_t rows, std::size_t cols) : rows_(rows), cols_(cols), data_(rows * cols) {}
-        Matrix(std::size_t rows, std::size_t cols, const T &value) : rows_(rows), cols_(cols), data_(rows * cols, value) {}
+        Matrix(const std::size_t rows, const std::size_t cols) : rows_(rows), cols_(cols), data_(rows * cols) {}
+        Matrix(const std::size_t rows, const std::size_t cols, const T &value) : rows_(rows), cols_(cols), data_(rows * cols, value) {}
         Matrix(std::initializer_list<std::initializer_list<T>> init) {
             rows_ = init.size();
             cols_ = init.begin()->size();
@@ -44,16 +44,16 @@ namespace vmath {
         bool empty() const noexcept { return data_.empty(); }
 
         // доступ в стиле (i,j)
-        T &operator()(std::size_t i, std::size_t j) {
+        T &operator()(const std::size_t i, const std::size_t j) {
             return data_.at(i * cols_ + j);
         }
-        const T &operator()(std::size_t i, std::size_t j) const {
+        const T &operator()(const std::size_t i, const std::size_t j) const {
             return data_.at(i * cols_ + j);
         }
 
         // небезопасный прямой доступ без проверки
-        T &at_unchecked(std::size_t i, std::size_t j) noexcept { return data_[i * cols_ + j]; }
-        const T &at_unchecked(std::size_t i, std::size_t j) const noexcept { return data_[i * cols_ + j]; }
+        T &at_unchecked(const std::size_t i, const std::size_t j) noexcept { return data_[i * cols_ + j]; }
+        const T &at_unchecked(const std::size_t i, const std::size_t j) const noexcept { return data_[i * cols_ + j]; }
 
         vmath::Vector<T> row(std::size_t i) const {
             if (i >= rows_) throw std::out_of_range("row out of range");
@@ -69,7 +69,7 @@ namespace vmath {
             return c;
         }
 
-        Matrix cut(std::size_t start_row, std::size_t end_row, std::size_t start_col, std::size_t end_col) {
+        Matrix cut(const std::size_t start_row, const std::size_t end_row, const std::size_t start_col, const std::size_t end_col) {
             if (start_row > end_row || start_col > end_col || end_row > rows_ || end_col > cols_) throw std::invalid_argument("Wrong Indexes");
             Matrix res(end_row - start_row, end_col - start_col);
             for (std::size_t i = start_row; i < end_row; ++i) {
@@ -181,6 +181,49 @@ namespace vmath {
             }
         }
 
+        // нормы
+        T norm1() const {
+            T max_sum = T(0);
+            for (std::size_t j = 0; j < cols_; j++) {
+                T col_sum = T(0);
+                for (std::size_t i = 0; i < rows_; i++)
+                    col_sum += std::abs((*this)(i, j));
+                max_sum = std::max(max_sum, col_sum);
+            }
+            return max_sum;
+        }
+
+        T norm_inf() const {
+            T max_sum = T(0);
+            for (std::size_t i = 0; i < rows_; i++) {
+                T row_sum = T(0);
+                for (std::size_t j = 0; j < cols_; j++)
+                    row_sum += std::abs((*this)(i, j));
+                max_sum = std::max(max_sum, row_sum);
+            }
+            return max_sum;
+        }
+
+        T norm_frobenius() const {
+            T sum = T(0);
+            for (std::size_t i = 0; i < rows_; i++) {
+                for (std::size_t j = 0; j < cols_; j++) {
+                    sum += (*this)(i, j) * (*this)(i, j);
+                }
+            }
+            return std::sqrt(sum);
+        }
+
+
+        // Числа обусловленности
+        T condition_number_1() const {return this->norm1() * this->inverse().norm1();}
+
+        T condition_number_inf() const {return this->norm_inf() * this->inverse().norm_inf();}
+
+        T condition_number_frobenius() const {return this->norm_frobenius() * this->inverse().norm_frobenius();}
+
+
+        // LUP разложение
         std::tuple<Matrix, Matrix, Matrix> lup_decompose(long double tol = std::numeric_limits<long double>::epsilon()) const {
             if (rows_ != cols_) throw std::invalid_argument("LUP decomposition requires a square matrix");
             std::size_t n = rows_;
@@ -222,6 +265,8 @@ namespace vmath {
             return {L, U, P};
         }
 
+
+        //решение систем
         static vmath::Vector<T> solve(const Matrix &A, const vmath::Vector<T> &b) {
             std::size_t n = A.rows();
 
@@ -250,7 +295,9 @@ namespace vmath {
             return x;
         }
 
-        T determinant_via_lup(long double tol = std::numeric_limits<long double>::epsilon()) const {
+
+        // определитель
+        T determinant_via_lup(const long double tol = std::numeric_limits<long double>::epsilon()) const {
             auto [L,U,P] = lup_decompose(tol);
             long double prod = 1.0;
             std::size_t n = rows_;
@@ -258,6 +305,7 @@ namespace vmath {
             return (T)prod;
         }
 
+        //обращение матрицы
         Matrix inverse(long double tol = std::numeric_limits<long double>::epsilon()) const {
             if (rows_ != cols_) throw std::invalid_argument("Inverse requires square matrix");
             std::size_t n = rows_;
@@ -301,8 +349,6 @@ namespace vmath {
                     }
                 }
             }
-
-
 
             return U.cut(0, n, n, 2*n);
         }
