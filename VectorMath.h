@@ -19,7 +19,7 @@
 namespace vmath {
     template <typename T>
     class Vector {
-        static_assert(std::is_arithmetic<T>::value, "Vector requires arithmetic type");
+        //static_assert(std::is_arithmetic<T>::value, "Vector requires arithmetic type");
 
     public:
         // Конструкторы
@@ -27,6 +27,12 @@ namespace vmath {
         explicit Vector(std::size_t n) : data_(n) {}
         Vector(std::size_t n, const T &value) : data_(n, value) {}
         Vector(std::initializer_list<T> il) : data_(il) {}
+
+        static Vector randomVector(std::size_t n) {
+            Vector v(n);
+            for (std::size_t i = 0; i < n; ++i) v[i] = static_cast<T>(((float)rand()/(float)rand()));
+            return v;
+        }
 
         template <class It>
         Vector(It first, It last) : data_(first, last) {}

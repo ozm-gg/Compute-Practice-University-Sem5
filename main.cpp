@@ -1,42 +1,49 @@
 #include <iostream>
 #include "VectorMath.h"
 #include "MatrixMath.h"
+#include "OperationCounter.h"
 
+
+using CountedDouble = vmath::OpCounter<double>;
 
 int main() {
-    vmath::Matrix<double> A{{2.0, 3.0, 1.0}, {4.0, 7.0, 7.0}, {6.0, 18.0, 22.0}};
 
-    std::cout << "A:" << A << std::endl;
+    vmath::Matrix<CountedDouble> B = vmath::Matrix<CountedDouble>::randomMatrix(7);
 
+    vmath::reset_ops();
+    auto tmp = vmath::Matrix<CountedDouble>::solve(B, vmath::Vector<CountedDouble>::randomVector(7));
+    std::cout << "Gauss ops:" << vmath::get_ops() << std::endl;
 
-    auto [L, U, P] = A.lup_decompose();
+    std::cout << "B:" << B << std::endl;
+    vmath::reset_ops();
+    auto L = (B * B.transpose()).cholesky_decompose();
+    std::cout << "cholesky ops:" << vmath::get_ops() << std::endl;
     std::cout << "L:" << L << std::endl;
-    std::cout << "U:" << U << std::endl;
-    std::cout << "P: "<< P << std::endl;
 
-    vmath::Matrix<double> B = vmath::Matrix<double>::identity(3);
+    std::cout << "B*B^T:" << B * B.transpose() << std::endl;
+    std::cout << "L*L^T:" << L * L.transpose() << std::endl;
 
-    std::cout << "A:\n" << A << "\n";
-    std::cout << "A + I:\n" << (A + B) << "\n";
-    std::cout << "A - I:\n" << (A - B) << "\n";
-    std::cout << "2*A:\n" << (2.0 * A) << "\n";
-
-    vmath::Vector<double> x_true{1.0, 2.0, 3.0};
-    auto x = vmath::Matrix<double>::solve(A, A * x_true);
-
-    std::cout << "Solution x:"<< x << std::endl;
-    std::cout << "check: "<< A * x << std::endl;
-    std::cout << "Err: "<< (x - x_true).norm() << std::endl;
+    std::cout << "norm B*B^T - L*L^T:" << (B * B.transpose() - L * L.transpose()).norm_frobenius() << std::endl;
 
 
-    std::cout << "det(A) = " << A.determinant_via_lup() << "\n";
+    int n = 7;
+    vmath::Vector<CountedDouble> a = vmath::Vector<CountedDouble>::randomVector(n - 1);
+    vmath::Vector<CountedDouble> b = vmath::Vector<CountedDouble>::randomVector(n);
+    vmath::Vector<CountedDouble> c = vmath::Vector<CountedDouble>::randomVector(n - 1);
 
-    std::cout << "A^{-1}:\n" << A.inverse() << "\n";
+    std::cout<<a<<std::endl;
+    std::cout<<b<<std::endl;
+    std::cout<<c<<std::endl;
 
+    vmath::Vector<CountedDouble> x_true = vmath::Vector<CountedDouble>::randomVector(n);
+    vmath::Vector<CountedDouble> d = vmath::Matrix<CountedDouble>::threeDiagonal(a, b, c) * x_true;
 
+    std::cout << vmath::Matrix<CountedDouble>::threeDiagonal(a, b, c) << std::endl;
 
-    return 0;
+    auto x_sol = vmath::Matrix<CountedDouble>::thomas_solve(a, b, c, d);
+
+    std::cout<<"(x_sol - x_true).norm(): "<<(x_sol - x_true).norm()<<std::endl;
+
 
     return 0;
 }
-

@@ -6,12 +6,13 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(ComputationalPractice main.cpp
         VectorMath.h
         MatrixMath.h
-        )
+        OperationCounter.h
+)
 
 include(FetchContent)
 FetchContent_Declare(
         googletest
-        URL https://github.com/google/googletest/archive/release-1.12.1.zip
+        URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
 )
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)

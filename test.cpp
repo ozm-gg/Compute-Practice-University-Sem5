@@ -158,6 +158,92 @@ TEST(MatrixTest, SolveSystem) {
     EXPECT_NEAR(x[1], 2.5, 1e-12);
 }
 
+template<typename T>
+void expect_vector_near(const Vector<T>& v, const Vector<T>& ref, double tol = 1e-9) {
+    ASSERT_EQ(v.size(), ref.size());
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        EXPECT_NEAR(static_cast<double>(v[i]), static_cast<double>(ref[i]), tol) << "index " << i;
+    }
+}
+
+template<typename T>
+void expect_matrix_near(const Matrix<T>& A, const Matrix<T>& B, double tol = 1e-9) {
+    ASSERT_EQ(A.rows(), B.rows());
+    ASSERT_EQ(A.cols(), B.cols());
+    for (std::size_t i = 0; i < A.rows(); ++i)
+        for (std::size_t j = 0; j < A.cols(); ++j)
+            EXPECT_NEAR(static_cast<double>(A(i,j)), static_cast<double>(B(i,j)), tol) << "element ("<<i<<","<<j<<")";
+}
+
+// ========== ТЕСТЫ ДЛЯ CHOLESKY ==========
+TEST(CholeskyTest, Simple2x2) {
+    Matrix<double> A{{4.0, 1.0}, {1.0, 3.0}}; // SPD
+    auto L = A.cholesky_decompose();
+
+    // L should be lower triangular with positive diagonal
+    EXPECT_NEAR(L(0,0), 2.0, 1e-12);
+    EXPECT_NEAR(L(1,0), 0.5, 1e-12);
+    EXPECT_NEAR(L(1,1), std::sqrt(3.0 - 0.25), 1e-12); // sqrt(11/4) = sqrt(2.75)
+
+    // Reconstruction
+    auto recon = L * L.transpose();
+    expect_matrix_near(recon, A, 1e-9);
+}
+
+TEST(CholeskyTest, Classic3x3) {
+    // symmetric positive definite (classic test)
+    Matrix<double> A{
+        {25.0, 15.0, -5.0},
+        {15.0, 18.0,  0.0},
+        {-5.0,  0.0, 11.0}
+    };
+    auto L = A.cholesky_decompose();
+    // check lower-triangular structure and diag positive
+    EXPECT_NEAR(L(0,0), 5.0, 1e-12);
+    EXPECT_NEAR(L(1,0), 3.0, 1e-12);
+    EXPECT_NEAR(L(2,0), -1.0, 1e-12);
+    EXPECT_GT(L(0,0), 0.0);
+    EXPECT_GT(L(1,1), 0.0);
+    EXPECT_GT(L(2,2), 0.0);
+
+    auto recon = L * L.transpose();
+    expect_matrix_near(recon, A, 1e-9);
+}
+
+TEST(CholeskyTest, NonPositiveDefiniteThrows) {
+    // symmetric but not positive definite
+    Matrix<double> A{{1.0, 2.0}, {2.0, 1.0}};
+    EXPECT_THROW(A.cholesky_decompose(), std::runtime_error);
+}
+
+TEST(CholeskyTest, OneByOne) {
+    Matrix<double> A{{4.0}};
+    auto L = A.cholesky_decompose();
+    EXPECT_EQ(L.rows(), 1u);
+    EXPECT_EQ(L.cols(), 1u);
+    EXPECT_NEAR(L(0,0), 2.0, 1e-12);
+}
+
+// ========== ТЕСТЫ ДЛЯ THOMAS (трёхдиагоналка) ==========
+TEST(ThomasTest, Small3x3ExactSolution) {
+    Vector<double> a{1.0, 1.0};      // sub-diagonal (n-1)
+    Vector<double> b{2.0, 2.0, 2.0}; // main diagonal (n)
+    Vector<double> c{3.0, 3.0};      // super-diagonal (n-1)
+
+    // choose x_true and compute d = A * x_true
+    Vector<double> x_true{1.0, 2.0, 3.0};
+    // compute d manually
+    Vector<double> d(3);
+    d[0] = b[0]*x_true[0] + c[0]*x_true[1];
+    d[1] = a[0]*x_true[0] + b[1]*x_true[1] + c[1]*x_true[2];
+    d[2] = a[1]*x_true[1] + b[2]*x_true[2];
+
+    auto x_sol = Matrix<double>::thomas_solve(a, b, c, d);
+    expect_vector_near(x_sol, x_true, 1e-12);
+}
+
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
