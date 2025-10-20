@@ -83,8 +83,9 @@ namespace vmath {
 
         Matrix cut(const std::size_t start_row, const std::size_t end_row, const std::size_t start_col,
                    const std::size_t end_col) {
-            if (start_row > end_row || start_col > end_col || end_row > rows_ || end_col > cols_) throw
-                    std::invalid_argument("Wrong Indexes");
+            if (start_row > end_row || start_col > end_col || end_row > rows_ || end_col > cols_)
+                throw
+                        std::invalid_argument("Wrong Indexes");
             Matrix res(end_row - start_row, end_col - start_col);
             for (std::size_t i = start_row; i < end_row; ++i) {
                 for (std::size_t j = start_col; j < end_col; ++j) {
@@ -112,19 +113,34 @@ namespace vmath {
             return m;
         }
 
-        static Matrix threeDiagonal(const vmath::Vector<T>& a,
-                                     const vmath::Vector<T>& b,
-                                     const vmath::Vector<T>& c) {
+        static Matrix random_diagonally_dominant(std::size_t n, T diag_add = T(1.0)) {
+            Matrix<T> A(n, n);
+            for (std::size_t i = 0; i < n; ++i) {
+                T row_sum = T(0);
+                for (std::size_t j = 0; j < n; ++j) {
+                    if (i == j) continue;
+                    double r = (double)rand() / RAND_MAX;
+                    A.at_unchecked(i, j) = static_cast<T>((r - 0.5) * 2.0);
+                    row_sum += std::abs(A.at_unchecked(i, j));
+                }
+                A.at_unchecked(i, i) = static_cast<T>(row_sum) +  diag_add;
+            }
+            return A;
+        }
+
+        static Matrix threeDiagonal(const vmath::Vector<T> &a,
+                                    const vmath::Vector<T> &b,
+                                    const vmath::Vector<T> &c) {
             std::size_t n = b.size();
             Matrix m(n, n);
-            m(0,0) = b[0];
+            m(0, 0) = b[0];
             m(1, 0) = a[0];
             for (std::size_t i = 1; i < n - 1; ++i) {
                 m(i, i) = b[i];
                 m(i + 1, i) = a[i];
                 m(i - 1, i) = c[i - 1];
             }
-            m(n - 1,n - 1) = b[n - 1];
+            m(n - 1, n - 1) = b[n - 1];
             m(n - 2, n - 1) = c[n - 2];
             return m;
         }
@@ -168,16 +184,18 @@ namespace vmath {
 
 
         Matrix &operator+=(const Matrix &other) {
-            if (rows_ != other.rows_ || cols_ != other.cols_) throw std::invalid_argument(
-                "Matrix sizes must match for addition");
+            if (rows_ != other.rows_ || cols_ != other.cols_)
+                throw std::invalid_argument(
+                    "Matrix sizes must match for addition");
             for (std::size_t i = 0; i < data_.size(); ++i) data_[i] += other.data_[i];
             return *this;
         }
 
 
         Matrix &operator-=(const Matrix &other) {
-            if (rows_ != other.rows_ || cols_ != other.cols_) throw std::invalid_argument(
-                "Matrix sizes must match for subtraction");
+            if (rows_ != other.rows_ || cols_ != other.cols_)
+                throw std::invalid_argument(
+                    "Matrix sizes must match for subtraction");
             for (std::size_t i = 0; i < data_.size(); ++i) data_[i] -= other.data_[i];
             return *this;
         }
@@ -369,10 +387,10 @@ namespace vmath {
         }
 
         //Прогонка
-        static vmath::Vector<T> thomas_solve(const vmath::Vector<T>& a,
-                                     const vmath::Vector<T>& b,
-                                     const vmath::Vector<T>& c,
-                                     const vmath::Vector<T>& d) {
+        static vmath::Vector<T> thomas_solve(const vmath::Vector<T> &a,
+                                             const vmath::Vector<T> &b,
+                                             const vmath::Vector<T> &c,
+                                             const vmath::Vector<T> &d) {
             std::size_t n = b.size();
             if (d.size() != n) throw std::invalid_argument("Sizes do not match");
             if (a.size() != n - 1 || c.size() != n - 1)
@@ -399,6 +417,70 @@ namespace vmath {
                 if (i == 0) break;
             }
 
+            return x;
+        }
+
+        //простая итерация
+        static vmath::Vector<T> simple_iteration(
+            const Matrix &A,
+            const vmath::Vector<T> &b,
+            vmath::Vector<T> x0 = {},
+            long double tol = 1e-14L,
+            std::size_t max_iters = 10000
+        ) {
+            std::size_t n = A.rows();
+            if (A.cols() != n) throw std::invalid_argument("simple_iteration: A must be square");
+            if (b.size() != n) throw std::invalid_argument("simple_iteration: incompatible sizes");
+
+            vmath::Vector<T> x = (x0.size() ? x0 : vmath::Vector<T>(n, T(0)));
+            vmath::Vector<T> x_prev = x;
+
+            Matrix B(n, n, T(0));
+            vmath::Vector<T> c(n, T(0));
+
+            for (std::size_t i = 0; i < n; ++i) {
+                for (std::size_t j = 0; j < n; ++j) {
+                    if (i != j) {
+                        B(i, j) = - A(i, j) / A(i, i);
+                    }
+                }
+                c[i] = b[i] / A(i, i);
+            }
+
+            for (std::size_t iter = 0; iter < max_iters; ++iter) {
+                x = B*x + c;
+                if ((x-x_prev).norm() < tol) break;
+                x_prev = x;
+            }
+            return x;
+        }
+
+        //Зейдель
+        static vmath::Vector<T> seidel(
+            const Matrix &A,
+            const vmath::Vector<T> &b,
+            vmath::Vector<T> x0 = {},
+            long double tol = 1e-14L,
+            std::size_t max_iters = 10000
+        ) {
+            std::size_t n = A.rows();
+            if (A.cols() != n) throw std::invalid_argument("seidel: A must be square");
+            if (b.size() != n) throw std::invalid_argument("seidel: incompatible sizes");
+
+            vmath::Vector<T> x = (x0.size() ? x0 : vmath::Vector<T>(n, T(0)));
+            vmath::Vector<T> x_prev = x;
+
+            for (std::size_t iter = 0; iter < max_iters; ++iter) {
+                x_prev = x;
+                for (std::size_t i = 0; i < n; ++i) {
+                    if (A(i,i) == T(0)) throw std::runtime_error("seidel: zero diagonal");
+                    T sum = T(0);
+                    for (std::size_t j = 0; j < i; ++j) sum += A.at_unchecked(i, j) * x[j];
+                    for (std::size_t j = i + 1; j < n; ++j) sum += A.at_unchecked(i, j) * x_prev[j];
+                    x[i] = (b[i] - sum) / A(i, i);
+                }
+                if ((x-x_prev).norm() < tol) break;
+            }
             return x;
         }
 
@@ -444,7 +526,7 @@ namespace vmath {
         }
 
         static vmath::Vector<T> solve_Gauss(const Matrix &M,
-                                          const vmath::Vector<T> &b) {
+                                            const vmath::Vector<T> &b) {
             return M.inverse() * b;
         }
 

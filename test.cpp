@@ -244,6 +244,95 @@ TEST(ThomasTest, Small3x3ExactSolution) {
 
 
 
+
+static void expect_vector_near(const Vector<double>& a, const Vector<double>& b, double tol = 1e-8) {
+    ASSERT_EQ(a.size(), b.size());
+    for (std::size_t i = 0; i < a.size(); ++i) {
+        EXPECT_NEAR(a[i], b[i], tol) << "index " << i;
+    }
+}
+
+
+TEST(IterativeSimple, SimpleIteration_SPD) {
+    Matrix<double> A{
+        {4.0, 1.0},
+        {1.0, 3.0}
+    };
+    Vector<double> b{1.0, 2.0};
+    Vector<double> x_ref = Matrix<double>::solve(A, b);
+    Vector<double> x = Matrix<double>::simple_iteration(A, b, {}, 1e-12, 20000);
+    expect_vector_near(x, x_ref, 1e-5);
+}
+
+TEST(IterativeSimple, SimpleIteration_DiagonallyDominant) {
+    Matrix<double> A{
+        {10.0, -1.0, 2.0, 0.0},
+        {-1.0, 11.0, -1.0, 3.0},
+        {2.0, -1.0, 10.0, -1.0},
+        {0.0, 3.0, -1.0, 8.0}
+    };
+    Vector<double> b{6.0, 25.0, -11.0, 15.0};
+    Vector<double> x_ref = Matrix<double>::solve(A, b);
+    Vector<double> x = Matrix<double>::simple_iteration(A, b, {}, 1e-12, 50000);
+    expect_vector_near(x, x_ref, 1e-6);
+}
+
+TEST(IterativeSimple, SimpleIteration_OneByOne) {
+    Matrix<double> A{{5.0}};
+    Vector<double> b{10.0};
+    Vector<double> x_ref = Matrix<double>::solve(A, b);
+    Vector<double> x = Matrix<double>::simple_iteration(A, b);
+    expect_vector_near(x, x_ref, 1e-12);
+}
+
+TEST(IterativeSimple, GaussSeidel_SPD) {
+    Matrix<double> A{
+        {4.0, 1.0},
+        {1.0, 3.0}
+    };
+    Vector<double> b{1.0, 2.0};
+    Vector<double> x_ref = Matrix<double>::solve(A, b);
+    Vector<double> x = Matrix<double>::seidel(A, b, {}, 1e-12, 20000);
+    expect_vector_near(x, x_ref, 1e-6);
+}
+
+TEST(IterativeSimple, GaussSeidel_DiagonallyDominant) {
+    Matrix<double> A{
+        {10.0, -1.0, 2.0, 0.0},
+        {-1.0, 11.0, -1.0, 3.0},
+        {2.0, -1.0, 10.0, -1.0},
+        {0.0, 3.0, -1.0, 8.0}
+    };
+    Vector<double> b{6.0, 25.0, -11.0, 15.0};
+    Vector<double> x_ref = Matrix<double>::solve(A, b);
+    Vector<double> x = Matrix<double>::seidel(A, b, {}, 1e-12, 20000);
+    expect_vector_near(x, x_ref, 1e-6);
+}
+
+TEST(IterativeSimple, SimpleVsGaussSeidel_Consistency) {
+    std::size_t n = 6;
+    Vector<double> a(n-1), bvec(n), c(n-1);
+    for (std::size_t i = 0; i < n - 1; ++i) { a[i] = -1.0; c[i] = -1.0; }
+    for (std::size_t i = 0; i < n; ++i) bvec[i] = 4.0 + 0.1 * i;
+    Matrix<double> A = Matrix<double>::threeDiagonal(a, bvec, c);
+
+    Vector<double> x_true(n);
+    for (std::size_t i = 0; i < n; ++i) x_true[i] = static_cast<double>(i + 1);
+
+    Vector<double> d(n);
+    for (std::size_t i = 0; i < n; ++i) {
+        double s = 0;
+        for (std::size_t j = 0; j < n; ++j) s += A(i, j) * x_true[j];
+        d[i] = s;
+    }
+
+    Vector<double> x_si = Matrix<double>::simple_iteration(A, d, {}, 1e-12, 50000);
+    Vector<double> x_gs = Matrix<double>::seidel(A, d, {}, 1e-12, 50000);
+    expect_vector_near(x_si, x_gs, 1e-5);
+}
+
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

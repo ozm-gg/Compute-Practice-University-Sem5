@@ -8,41 +8,25 @@ using CountedDouble = vmath::OpCounter<double>;
 
 int main() {
 
-    vmath::Matrix<CountedDouble> B = vmath::Matrix<CountedDouble>::randomMatrix(7);
-
-    vmath::reset_ops();
-    auto tmp = vmath::Matrix<CountedDouble>::solve(B, vmath::Vector<CountedDouble>::randomVector(7));
-    std::cout << "Gauss ops:" << vmath::get_ops() << std::endl;
-
-    std::cout << "B:" << B << std::endl;
-    vmath::reset_ops();
-    auto L = (B * B.transpose()).cholesky_decompose();
-    std::cout << "cholesky ops:" << vmath::get_ops() << std::endl;
-    std::cout << "L:" << L << std::endl;
-
-    std::cout << "B*B^T:" << B * B.transpose() << std::endl;
-    std::cout << "L*L^T:" << L * L.transpose() << std::endl;
-
-    std::cout << "norm B*B^T - L*L^T:" << (B * B.transpose() - L * L.transpose()).norm_frobenius() << std::endl;
-
-
-    int n = 7;
-    vmath::Vector<CountedDouble> a = vmath::Vector<CountedDouble>::randomVector(n - 1);
-    vmath::Vector<CountedDouble> b = vmath::Vector<CountedDouble>::randomVector(n);
-    vmath::Vector<CountedDouble> c = vmath::Vector<CountedDouble>::randomVector(n - 1);
-
-    std::cout<<a<<std::endl;
-    std::cout<<b<<std::endl;
-    std::cout<<c<<std::endl;
+    size_t n = 7;
+    vmath::Matrix<CountedDouble> A = vmath::Matrix<CountedDouble>::random_diagonally_dominant(n, 100);
 
     vmath::Vector<CountedDouble> x_true = vmath::Vector<CountedDouble>::randomVector(n);
-    vmath::Vector<CountedDouble> d = vmath::Matrix<CountedDouble>::threeDiagonal(a, b, c) * x_true;
+    vmath::Vector<CountedDouble> b = A * x_true;
 
-    std::cout << vmath::Matrix<CountedDouble>::threeDiagonal(a, b, c) << std::endl;
+    std::cout <<"x_true" << x_true << std::endl;
 
-    auto x_sol = vmath::Matrix<CountedDouble>::thomas_solve(a, b, c, d);
+    vmath::reset_ops();
+    auto tmp = vmath::Matrix<CountedDouble>::simple_iteration(A, b);
+    std::cout << "simple_iteration ops:" << vmath::get_ops() << std::endl;
 
-    std::cout<<"(x_sol - x_true).norm(): "<<(x_sol - x_true).norm()<<std::endl;
+    std::cout << "norm(x - x_true)" << (tmp - x_true).norm() << std::endl;
+
+    vmath::reset_ops();
+    tmp = vmath::Matrix<CountedDouble>::seidel(A, b);
+    std::cout << "seidel ops:" << vmath::get_ops() << std::endl;
+
+    std::cout << "norm(x - x_true)" << (tmp - x_true).norm() << std::endl;
 
 
     return 0;
